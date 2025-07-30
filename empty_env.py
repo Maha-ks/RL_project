@@ -11,7 +11,7 @@ gamma = 0.99             # Discount factor
 epsilon = 1.0            # Initial exploration rate
 min_epsilon = 0.01       # Minimum exploration rate
 epsilon_decay = 0.995    # Decay rate per episode
-num_episodes = 10000      # Total training episodes
+num_episodes = 5000      # Total training episodes
 max_steps = 50          # Max steps per episode
 
 # Environment

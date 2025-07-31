@@ -1,0 +1,15 @@
+env_name: DoorKey
+strategy: count
+render: true
+
+training:
+  alpha: 0.1
+  gamma: 0.99
+  epsilon: 1.0
+  min_epsilon: 0.01
+  epsilon_decay: 0.999
+  beta: 0.5
+  num_episodes: 5000
+  max_steps: 200
+
+save_path: qtables/qtable_door_key.npy

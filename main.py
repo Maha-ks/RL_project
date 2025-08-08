@@ -15,13 +15,15 @@ q_table, rewards = train_q_learning(env, config["strategy"], config["training"])
 env = get_environment(config["env_name"], "human")
 
 # Evaluate agent
-def evaluate_agent(env, q_table, get_state, n_episodes=5):
+def evaluate_agent(env, q_table, get_state, n_episodes=10):
     for ep in range(n_episodes):
         obs, _ = env.reset()
         state = get_state(env, obs)
         total_reward = 0
         for _ in range(100):
-            action = np.argmax(q_table.get(state, np.zeros(env.action_space.n)))
+            q_vals = q_table.get(state, np.zeros(env.action_space.n))
+            action = int(np.argmax(q_vals))
+
             next_obs, reward, done, truncated, _ = env.step(action)
             state = get_state(env, next_obs)
             total_reward += reward

@@ -1,12 +1,8 @@
 import numpy as np
 
-# === Count-based intrinsic bonus ===
 def intrinsic_count_bonus(strategy, next_state, state_visits, beta):
     if strategy == "count":
         visit_count = state_visits[next_state]
-
-        #print('Visit count: ',visit_count)
-        #print('Count reward : ',beta / (np.sqrt(visit_count + 1)))
         return beta / (np.sqrt(visit_count + 1))
     return 0.0
 
@@ -63,7 +59,7 @@ def apply_key_distance_shaping(env, shaped_reward, action):
         prev_dist = manhattan_dist(prev_pos, key_pos)
         curr_dist = manhattan_dist(agent_pos, key_pos)
         if curr_dist < prev_dist:
-            shaped_reward += 0.03  # reward for progress
+            shaped_reward += 0.03
         else:
             shaped_reward -= 0.03
 

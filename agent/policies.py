@@ -8,7 +8,7 @@ def choose_action(state, q_table, prev_q_table, strategy, epsilon, n_actions, sa
 
     if strategy == "decay":
         adaptive_epsilon = epsilon
-        
+
     elif strategy == "novelty":
         # Learning progress
         learning_progress = np.max(np.abs(q_values - prev_q_values))
@@ -34,7 +34,7 @@ def choose_action(state, q_table, prev_q_table, strategy, epsilon, n_actions, sa
         q_probs = softmax(q_values) if np.any(q_values) else np.ones(n_actions) / n_actions
         H = entropy(q_probs)
         H_norm = H / (np.log(n_actions) + 1e-12)
-        adaptive_epsilon = H_norm
+        adaptive_epsilon = max(epsilon, H_norm)
 
     elif strategy == "count":
         counts = np.array([sa_counts.get((state, a), 0) for a in range(n_actions)], dtype=float)

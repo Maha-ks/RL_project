@@ -22,7 +22,7 @@ def choose_action(state, q_table, prev_q_table, strategy, epsilon, n_actions, sa
         q_range = (np.max(q_values) - np.min(q_values)) ** 2 + 1e-8
         normalized_variance = q_var / q_range
 
-        # Combine all into a normalized novelty score ∈ [0, 1]
+        # Combine all into a normalized novelty score in [0, 1]
         novelty_score = (
             0.3 * normalized_entropy +
             0.4 * learning_progress +

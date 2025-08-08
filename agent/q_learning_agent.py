@@ -20,7 +20,16 @@ def train_q_learning(env, strategy, config):
     render = config.get("render", False)
 
     # Create folder for saving plots
-    plot_dir = "plots"
+    env_name = env.spec.id.lower()  # e.g., "minigrid-doorkey-5x5-v0"
+    if "doorkey" in env_name:
+        subfolder = "doorkey"
+    elif "unlock" in env_name:
+        subfolder = "unlock"
+    else:
+        subfolder = "other"
+    plot_dir = os.path.join("plots", subfolder)
+    os.makedirs(plot_dir, exist_ok=True)
+    strategy_label = strategy.replace(" ", "_")
 
     n_actions = env.action_space.n
     q_table = {}
@@ -104,11 +113,11 @@ def train_q_learning(env, strategy, config):
     # 1. Total Reward per Episode
     plt.figure()
     plt.plot(episodes, rewards)
-    plt.title("Total Reward per Episode")
+    plt.title(f"Total Reward per Episode ({strategy})")
     plt.xlabel("Episode")
     plt.ylabel("Reward")
     plt.grid(True)
-    plt.savefig(os.path.join(plot_dir, "total_reward_per_episode.png"), dpi=300, bbox_inches="tight")
+    plt.savefig(os.path.join(plot_dir, f"total_reward_per_episode_{strategy_label}.png"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # 2. Rolling Success Rate
@@ -117,21 +126,21 @@ def train_q_learning(env, strategy, config):
 
     plt.figure()
     plt.plot(episodes, rolling_success)
-    plt.title(f"Rolling Success Rate (window={window})")
+    plt.title(f"Rolling Success Rate (window={window}) - {strategy}")
     plt.xlabel("Episode")
     plt.ylabel("Success Rate")
     plt.grid(True)
-    plt.savefig(os.path.join(plot_dir, "rolling_success_rate.png"), dpi=300, bbox_inches="tight")
+    plt.savefig(os.path.join(plot_dir, f"rolling_success_rate_{strategy_label}.png"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # 3. Unique States Visited per Episode
     plt.figure()
     plt.plot(episodes, unique_states_per_episode)
-    plt.title("Unique States Visited per Episode")
+    plt.title(f"Unique States Visited per Episode ({strategy})")
     plt.xlabel("Episode")
     plt.ylabel("# Unique States")
     plt.grid(True)
-    plt.savefig(os.path.join(plot_dir, "unique_states_per_episode.png"), dpi=300, bbox_inches="tight")
+    plt.savefig(os.path.join(plot_dir, f"unique_states_per_episode_{strategy_label}.png"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # 4. Epsilon Decay
@@ -139,11 +148,11 @@ def train_q_learning(env, strategy, config):
 
     plt.figure()
     plt.plot(episodes, epsilons)
-    plt.title("Epsilon Decay Over Episodes")
+    plt.title(f"Epsilon Decay Over Episodes ({strategy})")
     plt.xlabel("Episode")
     plt.ylabel("Epsilon")
     plt.grid(True)
-    plt.savefig(os.path.join(plot_dir, "epsilon_decay.png"), dpi=300, bbox_inches="tight")
+    plt.savefig(os.path.join(plot_dir, f"epsilon_decay_{strategy_label}.png"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # 5. Heatmaps
@@ -162,10 +171,10 @@ def train_q_learning(env, strategy, config):
         plt.figure()
         plt.imshow(visit_grid_log, origin="lower", interpolation="nearest")
         plt.colorbar(label="log(1 + visits)")
-        plt.title("State Visit Heatmap")
+        plt.title(f"State Visit Heatmap ({strategy})")
         plt.xlabel("x")
         plt.ylabel("y")
-        plt.savefig(os.path.join(plot_dir, "state_visit_heatmap.png"), dpi=300, bbox_inches="tight")
+        plt.savefig(os.path.join(plot_dir, f"state_visit_heatmap_{strategy_label}.png"), dpi=300, bbox_inches="tight")
         plt.close()
 
         # 5.2 Max-Q heatmap
@@ -180,10 +189,10 @@ def train_q_learning(env, strategy, config):
         plt.figure()
         plt.imshow(q_masked, origin="lower", interpolation="nearest")
         plt.colorbar(label="max Q(s, a)")
-        plt.title("Max-Q Heatmap")
+        plt.title(f"Max Q Heatmap ({strategy})")
         plt.xlabel("x")
         plt.ylabel("y")
-        plt.savefig(os.path.join(plot_dir, "max_q_heatmap.png"), dpi=300, bbox_inches="tight")
+        plt.savefig(os.path.join(plot_dir, f"max_q_heatmap_{strategy_label}.png"), dpi=300, bbox_inches="tight")
         plt.close()
 
     return q_table, rewards

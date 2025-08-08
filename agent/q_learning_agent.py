@@ -4,11 +4,16 @@ from .policies import choose_action
 from utils.reward_shaping import shape_reward
 from tqdm import trange
 import numpy as np
+import numpy.ma as ma
+import random
 from collections import defaultdict
 import matplotlib.pyplot as plt
 
 
-def train_q_learning(env, strategy, config):
+def train_q_learning(env, strategy, config, seed=None):
+    if seed is not None:
+        np.random.seed(seed)
+        random.seed(seed)
     alpha = config["alpha"]
     gamma = config["gamma"]
     epsilon = config["epsilon"]
@@ -22,14 +27,16 @@ def train_q_learning(env, strategy, config):
     # Create folder for saving plots
     env_name = env.spec.id.lower()  # e.g., "minigrid-doorkey-5x5-v0"
     if "doorkey" in env_name:
-        subfolder = "doorkey"
+        env_type = "doorkey"
     elif "unlock" in env_name:
-        subfolder = "unlock"
+        env_type = "unlock"
     else:
-        subfolder = "other"
-    plot_dir = os.path.join("plots", subfolder)
-    os.makedirs(plot_dir, exist_ok=True)
+        env_type = "other"
+    seed_label = f"seed_{seed}" if seed is not None else "no_seed"
     strategy_label = strategy.replace(" ", "_")
+
+    plot_dir = os.path.join("plots", env_type, strategy_label, seed_label)
+    os.makedirs(plot_dir, exist_ok=True)
 
     n_actions = env.action_space.n
     q_table = {}
@@ -111,13 +118,29 @@ def train_q_learning(env, strategy, config):
     episodes = list(range(num_episodes))
 
     # 1. Total Reward per Episode
+    window = 50  # smoothing window
+    rolling_rewards = np.convolve(rewards, np.ones(window)/window, mode='valid')
+    final_avg = np.mean(rewards[-100:])  # average of last 100 episodes
+
+    plt.figure()
+    plt.plot(rewards, label="Raw Reward", alpha=0.4)
+    plt.plot(range(window - 1, len(rewards)), rolling_rewards, label=f"Smoothed (window={window})", color='red')
+    plt.axhline(final_avg, color='green', linestyle='--', label=f"Final avg: {final_avg:.2f}")
+    plt.title(f"Total Reward per Episode ({strategy})")
+    plt.xlabel("Episode")
+    plt.ylabel("Reward")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(os.path.join(plot_dir, f"total_reward_per_episode.png"), dpi=300, bbox_inches="tight")
+    plt.close()
+    ### option 2
     plt.figure()
     plt.plot(episodes, rewards)
     plt.title(f"Total Reward per Episode ({strategy})")
     plt.xlabel("Episode")
     plt.ylabel("Reward")
     plt.grid(True)
-    plt.savefig(os.path.join(plot_dir, f"total_reward_per_episode_{strategy_label}.png"), dpi=300, bbox_inches="tight")
+    plt.savefig(os.path.join(plot_dir, f"total_reward_per_episode1.png"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # 2. Rolling Success Rate
@@ -130,7 +153,7 @@ def train_q_learning(env, strategy, config):
     plt.xlabel("Episode")
     plt.ylabel("Success Rate")
     plt.grid(True)
-    plt.savefig(os.path.join(plot_dir, f"rolling_success_rate_{strategy_label}.png"), dpi=300, bbox_inches="tight")
+    plt.savefig(os.path.join(plot_dir, f"rolling_success_rate.png"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # 3. Unique States Visited per Episode
@@ -140,7 +163,7 @@ def train_q_learning(env, strategy, config):
     plt.xlabel("Episode")
     plt.ylabel("# Unique States")
     plt.grid(True)
-    plt.savefig(os.path.join(plot_dir, f"unique_states_per_episode_{strategy_label}.png"), dpi=300, bbox_inches="tight")
+    plt.savefig(os.path.join(plot_dir, f"unique_states_per_episode.png"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # 4. Epsilon Decay
@@ -152,7 +175,7 @@ def train_q_learning(env, strategy, config):
     plt.xlabel("Episode")
     plt.ylabel("Epsilon")
     plt.grid(True)
-    plt.savefig(os.path.join(plot_dir, f"epsilon_decay_{strategy_label}.png"), dpi=300, bbox_inches="tight")
+    plt.savefig(os.path.join(plot_dir, f"epsilon_decay.png"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # 5. Heatmaps
@@ -174,25 +197,34 @@ def train_q_learning(env, strategy, config):
         plt.title(f"State Visit Heatmap ({strategy})")
         plt.xlabel("x")
         plt.ylabel("y")
-        plt.savefig(os.path.join(plot_dir, f"state_visit_heatmap_{strategy_label}.png"), dpi=300, bbox_inches="tight")
+        plt.savefig(os.path.join(plot_dir, f"state_visit_heatmap.png"), dpi=300, bbox_inches="tight")
         plt.close()
 
         # 5.2 Max-Q heatmap
-        q_grid = np.full((height, width), np.nan, dtype=float)
-        for s, qvals in q_table.items():
-            if s in state_to_pos:
-                x, y = state_to_pos[s]
-                q_grid[y, x] = np.max(qvals)
+        
+        # Construct Q-value heatmap matrix
+        q_matrix = np.zeros((height, width))  
+        mask = np.ones_like(q_matrix, dtype=bool)
 
-        q_masked = np.ma.array(q_grid, mask=np.isnan(q_grid))
+        for state, q_vals in q_table.items():
+            if state in state_to_pos:
+                x, y = state_to_pos[state]
+                q_matrix[y, x] = np.max(q_vals)
+                mask[y, x] = False  # mark as visited
 
+        masked_q = ma.masked_array(q_matrix, mask)
+
+        # Plot with masked color for unvisited
         plt.figure()
-        plt.imshow(q_masked, origin="lower", interpolation="nearest")
+        cmap = plt.cm.viridis
+        cmap.set_bad(color='lightgray')  # gray for walls/unvisited
+        plt.imshow(masked_q, origin='lower', cmap=cmap)
         plt.colorbar(label="max Q(s, a)")
         plt.title(f"Max Q Heatmap ({strategy})")
         plt.xlabel("x")
         plt.ylabel("y")
-        plt.savefig(os.path.join(plot_dir, f"max_q_heatmap_{strategy_label}.png"), dpi=300, bbox_inches="tight")
+        plt.savefig(os.path.join(plot_dir, f"max_q_heatmap.png"), dpi=300, bbox_inches="tight")
         plt.close()
+        
 
     return q_table, rewards

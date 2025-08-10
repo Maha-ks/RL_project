@@ -25,10 +25,10 @@ def train_q_learning(env, strategy, config, seed=None):
     render = config.get("render", False)
 
     # Create folder for saving plots
-    env_name = env.spec.id.lower()  # e.g., "minigrid-doorkey-5x5-v0"
-    if "doorkey" in env_name:
+    print(env.spec.id)
+    if "DoorKey" in env.spec.id:
         env_type = "doorkey"
-    elif "unlock" in env_name:
+    elif "Unlock" in env.spec.id:
         env_type = "unlock"
     else:
         env_type = "other"
@@ -51,7 +51,7 @@ def train_q_learning(env, strategy, config, seed=None):
     visit_counts = defaultdict(int)   # (x, y) -> count
     state_to_pos = {}                 # state -> (x, y)
 
-    has_received_key_reward = False
+
     prev_q_table = {}
 
     for episode in trange(num_episodes):
@@ -60,6 +60,9 @@ def train_q_learning(env, strategy, config, seed=None):
         total_reward = 0
         visited_states = set()
 
+        has_received_key_reward = False
+        has_unlocked_door_reward = False
+        
         # starting cell
         x0, y0 = env.unwrapped.agent_pos
         visit_counts[(x0, y0)] += 1
@@ -90,9 +93,9 @@ def train_q_learning(env, strategy, config, seed=None):
             if next_state not in q_table:
                 q_table[next_state] = np.zeros(n_actions)
 
-            reward, has_received_key_reward = shape_reward(
+            reward, has_received_key_reward, has_unlocked_door_reward = shape_reward(
                 env, action, reward, strategy, state_visits,
-                next_state, beta, has_received_key_reward, prev_agent_pos
+                next_state, beta, has_received_key_reward, prev_agent_pos, has_unlocked_door_reward, step
             )
 
             prev_q_table = q_table.copy()

@@ -5,6 +5,7 @@ from utils.state_utils import entropy
 def choose_action(state, q_table, prev_q_table, strategy, epsilon, n_actions, sa_counts=None, c=1.0, novelty_weights=None):
     q_values = q_table.get(state, np.zeros(n_actions))
     prev_q_values = prev_q_table.get(state, np.zeros(n_actions))
+    SWITCH_EPS = 0.1  # when your decayed epsilon goes below this, we allow entropy to boost it
 
     if strategy == "decay":
         adaptive_epsilon = epsilon
@@ -39,8 +40,14 @@ def choose_action(state, q_table, prev_q_table, strategy, epsilon, n_actions, sa
     elif strategy == "entropy":
         q_probs = softmax(q_values) if np.any(q_values) else np.ones(n_actions) / n_actions
         H = entropy(q_probs)
-        H_norm = H / (np.log(n_actions) + 1e-12)
-        adaptive_epsilon = max(epsilon, H_norm)
+        H_norm = H / (np.log(n_actions))
+
+        if epsilon > SWITCH_EPS:
+            # EARLY: follow your schedule only
+            adaptive_epsilon = epsilon
+        else:
+            # LATE: if still uncertain, allow exploration to go back up
+            adaptive_epsilon = max(epsilon, H_norm)
 
     elif strategy == "count":
         counts = np.array([sa_counts.get((state, a), 0) for a in range(n_actions)], dtype=float)

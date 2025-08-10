@@ -1,0 +1,193 @@
+# eval_qtables.py
+import os
+import yaml
+import numpy as np
+from typing import Dict, List, Tuple
+
+from environments import get_environment
+from utils.state_utils import get_state
+from utils.save_utils import load_q_table
+
+
+def evaluate_policy(
+    env, 
+    q_table: Dict, 
+    n_episodes: int = 50, 
+    max_steps: int = 100
+) -> Dict[str, np.ndarray]:
+    """
+    Evaluate a loaded Q-table greedily (argmax) for n_episodes.
+    Returns per-episode arrays for reward, steps, and success flag.
+    """
+    rewards: List[float] = []
+    steps_list: List[int] = []
+    successes: List[int] = []
+
+    for _ in range(n_episodes):
+        obs, _ = env.reset()
+        state = get_state(env, obs)
+
+        ep_reward = 0.0
+        ep_steps = 0
+        done = False
+        truncated = False
+
+        for _ in range(max_steps):
+            # Greedy action from Q-table
+            q_vals = q_table.get(state, np.zeros(env.action_space.n, dtype=float))
+            action = int(np.argmax(q_vals))
+
+            next_obs, r, done, truncated, _info = env.step(action)
+            ep_reward += float(r)
+            ep_steps += 1
+
+            state = get_state(env, next_obs)
+            if done or truncated:
+                break
+
+        rewards.append(ep_reward)
+        steps_list.append(ep_steps)
+        successes.append(1 if done else 0)
+
+    return {
+        "rewards": np.array(rewards, dtype=float),
+        "steps": np.array(steps_list, dtype=int),
+        "successes": np.array(successes, dtype=int),
+    }
+
+
+def summarize_metrics(metrics: Dict[str, np.ndarray]) -> Dict[str, float]:
+    """Compute summary stats for a set of episodes."""
+    rewards = metrics["rewards"]
+    steps = metrics["steps"]
+    successes = metrics["successes"]
+
+    success_mask = successes.astype(bool)
+    success_rate = successes.mean() if len(successes) else 0.0
+    avg_steps = int(round(steps.mean())) if len(steps) else 0
+    avg_reward = rewards.mean() if len(rewards) else 0.0
+    avg_steps_success = (
+        int(round(steps[success_mask].mean())) if success_mask.any() else None
+    )
+
+    return {
+        "avg_reward": float(avg_reward),
+        "avg_steps": avg_steps,
+        "success_rate": float(success_rate),
+        "avg_steps_success": avg_steps_success,
+    }
+
+
+
+def main():
+    # Load experiment config
+    with open("config.yaml", "r") as f:
+        config = yaml.safe_load(f)
+
+    env_name = config["env_name"]
+    strategy = config["strategy"]
+    eval_episodes = 100
+    max_steps = config.get("training", {}).get("max_steps", 20)
+
+    seeds = [0, 1, 2, 3, 4] 
+
+    # Where to save evaluation outputs
+    outdir = os.path.join("results", "eval", env_name, strategy.replace(" ", "_"))
+    os.makedirs(outdir, exist_ok=True)
+
+    # Accumulators across seeds
+    per_seed_rows = []
+
+    base_env = get_environment(env_name, render_mode=None)
+
+    for seed in seeds:
+        # loading the Q-table for this seed
+        try:
+            q_table = load_q_table(env_name, strategy, seed)
+        except Exception as e:
+            print(f"[WARN] Could not load Q-table for seed {seed}: {e}")
+            continue
+
+        base_env.reset(seed=seed)
+
+        # Evaluate
+        ep_metrics = evaluate_policy(
+            env=base_env,
+            q_table=q_table,
+            n_episodes=eval_episodes,
+            max_steps=max_steps,
+        )
+
+        # Summarize this seed
+        summary = summarize_metrics(ep_metrics)
+        row = {
+            "seed": seed,
+            "episodes": eval_episodes,
+            "avg_reward": round(summary["avg_reward"], 3),
+            "avg_steps": summary["avg_steps"], 
+            "success_rate": round(summary["success_rate"], 3),
+            "avg_steps_success": summary["avg_steps_success"],
+        }
+
+        per_seed_rows.append(row)
+
+        print(
+            f"Seed {seed} — "
+            f"AvgReward: {row['avg_reward']}, "
+            f"AvgSteps: {row['avg_steps']}, "
+            f"SuccessRate: {row['success_rate']}, "
+            f"AvgSteps@Success: {row['avg_steps_success']}"
+        )
+
+    base_env.close()
+
+    if not per_seed_rows:
+        print("No seeds evaluated. Check that Q-tables exist and load_q_table is configured correctly.")
+        return
+
+    # Aggregate across seeds for the strategy
+    avg_reward_vals = np.array([r["avg_reward"] for r in per_seed_rows], dtype=float)
+    avg_steps_vals = np.array([r["avg_steps"] for r in per_seed_rows], dtype=float)
+    success_rate_vals = np.array([r["success_rate"] for r in per_seed_rows], dtype=float)
+
+    #
+    steps_succ_vals = np.array(
+        [r["avg_steps_success"] for r in per_seed_rows if r["avg_steps_success"] is not None],
+        dtype=float,
+    )
+
+    overall = {
+        "seed": "overall",
+        "episodes": eval_episodes * len(per_seed_rows),
+        "avg_reward": round(float(avg_reward_vals.mean()), 3),
+        "avg_steps": int(round(avg_steps_vals.mean())),
+        "success_rate": round(float(success_rate_vals.mean()), 3),
+        "avg_steps_success": int(round(steps_succ_vals.mean())) if steps_succ_vals.size else None,
+    }
+
+
+    print("\n=== Strategy-level summary across seeds ===")
+    print(
+        f"{env_name} • {strategy} • {len(per_seed_rows)} seeds\n"
+        f"AvgReward: {overall['avg_reward']} | "
+        f"AvgSteps: {overall['avg_steps']} | "
+        f"SuccessRate: {overall['success_rate']} | "
+        f"AvgSteps@Success: {overall['avg_steps_success']}"
+    )
+
+    #Save CSV
+    import csv
+    csv_path = os.path.join(outdir, "evaluation_summary.csv")
+    fieldnames = ["seed", "episodes", "avg_reward", "avg_steps", "success_rate", "avg_steps_success"]
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in per_seed_rows:
+            writer.writerow(row)
+        writer.writerow(overall)
+
+    print(f"\nSaved summary to: {csv_path}")
+
+
+if __name__ == "__main__":
+    main()

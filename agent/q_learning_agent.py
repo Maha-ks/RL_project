@@ -76,7 +76,11 @@ def train_q_learning(env, strategy, config, seed=None):
             visited_states.add(state)
             prev_agent_pos = env.unwrapped.agent_pos
 
-            action = choose_action(state, q_table, prev_q_table, strategy, epsilon, n_actions, sa_counts)
+            #action = choose_action(state, q_table, prev_q_table, strategy, epsilon, n_actions, sa_counts)
+            action = choose_action(
+                state, q_table, prev_q_table, strategy, epsilon, n_actions,
+                sa_counts, c=None, novelty_weights=config.get("novelty_weights")
+            )
             sa_counts[(state, action)] += 1
             next_obs, reward, done, truncated, _ = env.step(action)
             next_state = get_state(env, next_obs)

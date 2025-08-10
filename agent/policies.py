@@ -2,7 +2,7 @@ import numpy as np
 import random
 from utils.state_utils import entropy
 
-def choose_action(state, q_table, prev_q_table, strategy, epsilon, n_actions, sa_counts=None, c=1.0):
+def choose_action(state, q_table, prev_q_table, strategy, epsilon, n_actions, sa_counts=None, c=1.0, novelty_weights=None):
     q_values = q_table.get(state, np.zeros(n_actions))
     prev_q_values = prev_q_table.get(state, np.zeros(n_actions))
 
@@ -23,10 +23,16 @@ def choose_action(state, q_table, prev_q_table, strategy, epsilon, n_actions, sa
         normalized_variance = q_var / q_range
 
         # Combine all into a normalized novelty score in [0, 1]
-        novelty_score = (
+        '''novelty_score = (
             0.3 * normalized_entropy +
             0.4 * learning_progress +
             0.3 * normalized_variance
+        )'''
+        weights = locals().get("novelty_weights", {"entropy": 0.3, "progress": 0.4, "variance": 0.3})
+        novelty_score = (
+            weights["entropy"]  * normalized_entropy +
+            weights["progress"] * learning_progress +
+            weights["variance"] * normalized_variance
         )
 
         adaptive_epsilon = max(epsilon, novelty_score)

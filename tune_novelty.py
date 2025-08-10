@@ -73,7 +73,7 @@ def main():
         w.writerow([
             "env","strategy_label","w_entropy","w_progress","w_variance",
             "alpha","epsilon","epsilon_decay","gamma","seed",
-            "final_reward","convergence_episode"
+            "final_reward","convergence_episode","avg_unique_states"  
         ])
 
     results_summary = []
@@ -94,6 +94,7 @@ def main():
 
         q_table, metrics = train_q_learning(env, strategy, cfg, seed=seed)
         rewards = metrics["rewards"]
+        u_states  = metrics["unique_states"]
 
         strat_label = (f"{strategy}_wE{w_set['entropy']}_wP{w_set['progress']}_wV{w_set['variance']}"
                        f"_a{alpha}_eps{eps_start}_decay{eps_decay}_g{gamma}")
@@ -101,13 +102,14 @@ def main():
 
         final_reward = mean_last_k(rewards, k=100)
         conv_ep = convergence_episode_from_rewards(rewards, threshold=0.6, window=50)
+        avg_unique_all = int(round(np.mean(u_states))) if u_states else 0.0
 
         with open(csv_path, "a", newline="") as cf:
             w = csv.writer(cf)
             w.writerow([
                 env_name, strat_label, w_set["entropy"], w_set["progress"], w_set["variance"],
                 alpha, eps_start, eps_decay, gamma, seed,
-                f"{final_reward:.6f}", (conv_ep if conv_ep is not None else "NA")
+                f"{final_reward:.6f}", (conv_ep if conv_ep is not None else "NA"),avg_unique_all
             ])
 
         score = final_reward - 0.0005 * (conv_ep if conv_ep is not None else 1e9)

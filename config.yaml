@@ -1,5 +1,5 @@
 env_name: Unlock
-strategy: decay
+strategy: Novelty
 render: true
 
 training:

@@ -1,0 +1,17 @@
+strategy: novelty
+env_name: Unlock
+seeds: [0]
+
+novelty_weight_sets:
+  - {entropy: 0.3, progress: 0.4, variance: 0.3}
+  - {entropy: 0.2, progress: 0.6, variance: 0.2}
+  - {entropy: 0.4, progress: 0.4, variance: 0.2}
+
+alpha_values: [0.07, 0.1, 0.2, 0.3]
+gamma_values: [0.90, 0.95, 0.99]
+epsilon_starts: [0.6, 0.8, 1.0]
+epsilon_decays: [0.999, 0.9995, 0.9999]
+#total 324 runs too much for using gridsearch so we use random search instead
+
+# how many random configs to sample from the full cartesian set
+num_random_configs: 30

@@ -29,7 +29,7 @@ def choose_action(state, q_table, prev_q_table, strategy, epsilon, n_actions, sa
             0.4 * learning_progress +
             0.3 * normalized_variance
         )'''
-        weights = locals().get("novelty_weights", {"entropy": 0.3, "progress": 0.4, "variance": 0.3})
+        weights = locals().get("novelty_weights", {"entropy": 0.33, "progress": 0.34, "variance": 0.33})
         novelty_score = (
             weights["entropy"]  * normalized_entropy +
             weights["progress"] * learning_progress +

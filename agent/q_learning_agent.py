@@ -79,11 +79,10 @@ def train_q_learning(env, strategy, config, seed=None):
             visited_states.add(state)
             prev_agent_pos = env.unwrapped.agent_pos
 
-            #action = choose_action(state, q_table, prev_q_table, strategy, epsilon, n_actions, sa_counts)
             action = choose_action(
-                state, q_table, prev_q_table, strategy, epsilon, n_actions,
-                sa_counts, c=None, novelty_weights=config.get("novelty_weights")
-            )
+                            state, q_table, prev_q_table, strategy, epsilon, n_actions,
+                            sa_counts, c=None, novelty_weights=config.get("novelty_weights")
+                        )            
             sa_counts[(state, action)] += 1
             next_obs, reward, done, truncated, _ = env.step(action)
             next_state = get_state(env, next_obs)
@@ -164,13 +163,38 @@ def train_q_learning(env, strategy, config, seed=None):
     plt.close()
 
     # 3. Unique States Visited per Episode
+    u_states = unique_states_per_episode
+    u_window = 50 
+    u_final_avg = np.mean(u_states[-100:]) if len(u_states) >= 1 else 0.0
+
+    if len(u_states) >= u_window:
+        u_roll = np.convolve(u_states, np.ones(u_window)/u_window, mode='valid')
+        u_roll_x = range(u_window - 1, len(u_states))
+    else:
+        # not enough points: just plot raw without smoothing
+        u_roll = None
+        u_roll_x = None
+
+    plt.figure()
+    plt.plot(episodes, u_states, label="Raw Unique States", alpha=0.4)
+    if u_roll is not None:
+        plt.plot(u_roll_x, u_roll, label=f"Smoothed (window={u_window})", color='red')
+    plt.axhline(u_final_avg, color='green', linestyle='--', label=f"Final avg: {u_final_avg:.2f}")
+    plt.title(f"Unique States Visited per Episode ({strategy})")
+    plt.xlabel("Episode")
+    plt.ylabel("# Unique States")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(os.path.join(plot_dir, "unique_states_per_episode.png"), dpi=300, bbox_inches="tight")
+    plt.close()
+    # option2
     plt.figure()
     plt.plot(episodes, unique_states_per_episode)
     plt.title(f"Unique States Visited per Episode ({strategy})")
     plt.xlabel("Episode")
     plt.ylabel("# Unique States")
     plt.grid(True)
-    plt.savefig(os.path.join(plot_dir, f"unique_states_per_episode.png"), dpi=300, bbox_inches="tight")
+    plt.savefig(os.path.join(plot_dir, f"unique_states_per_episode1.png"), dpi=300, bbox_inches="tight")
     plt.close()
 
     # 4. Epsilon Decay
@@ -234,4 +258,8 @@ def train_q_learning(env, strategy, config, seed=None):
         plt.close()
         
 
-    return q_table, rewards
+    return q_table, {
+        "rewards": rewards,
+        "successes": successes,
+        "unique_states": unique_states_per_episode,
+    }

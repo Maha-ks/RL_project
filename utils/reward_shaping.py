@@ -1,10 +1,47 @@
 import numpy as np
+from collections import deque
 
-def intrinsic_count_bonus(strategy, next_state, state_visits, beta):
-    if strategy == "count":
-        visit_count = state_visits[next_state]
-        return beta / (np.sqrt(visit_count + 1))
-    return 0.0
+LOG_FILE = "reward_log.txt"
+
+def intrinsic_count_bonus(next_state, state_visits, beta):
+    visit_count = state_visits[next_state]
+    return beta / (np.sqrt(visit_count + 1))
+
+
+def shortest_distance(env, start, target):
+    """Shortest steps from start to target in MiniGrid, allowing target even if blocked."""
+    sx, sy = start
+    tx, ty = target
+    W, H = env.width, env.height
+    
+    def passable(x, y, target):
+        if not (0 <= x < W and 0 <= y < H):
+            return False
+        if (x, y) == target:
+            return True  # always allow the target
+        tile = env.grid.get(x, y)
+        return not (tile and tile.type == "wall")
+
+
+    if (sx, sy) == (tx, ty):
+        return 0
+
+    q = deque([((sx, sy), 0)])
+    visited = {(sx, sy)}
+
+    while q:
+        (x, y), dist = q.popleft()
+        
+        for nx, ny in [(x+1,y), (x-1,y), (x,y+1), (x,y-1)]:
+            
+            if (nx, ny) == (tx, ty):
+                return dist + 1
+            
+            if (nx, ny) not in visited and passable(nx, ny, target):
+                visited.add((nx, ny))
+                q.append(((nx, ny), dist + 1))
+
+    return None
 
 def get_prev_pos(env, curr_pos, action):
     """
@@ -36,12 +73,16 @@ def get_prev_pos(env, curr_pos, action):
     # For other actions, assume the agent stayed in place
     return curr_pos
 
-def apply_key_distance_shaping(env, shaped_reward, action):
+def apply_key_distance_shaping(env, shaped_reward, action, door_unlocked, shaping_log):
     """
     Computes reward for getting closer to the key *based on predicted previous position*.
     """
+
+    if door_unlocked:
+        return shaped_reward, shaping_log
+    
     if env.carrying and env.carrying.type == 'key':
-        return shaped_reward
+        return shaped_reward, shaping_log
 
     agent_pos = env.agent_pos
     prev_pos = get_prev_pos(env, agent_pos, action)
@@ -56,21 +97,80 @@ def apply_key_distance_shaping(env, shaped_reward, action):
                 break
 
     if key_pos:
-        prev_dist = manhattan_dist(prev_pos, key_pos)
-        curr_dist = manhattan_dist(agent_pos, key_pos)
+        if "DoorKey" in env.spec.id:
+            prev_dist = shortest_distance(env, prev_pos, key_pos)
+            curr_dist = shortest_distance(env, agent_pos, key_pos)
+
+            shaping_log.append(f"~ Old key distance: {prev_dist:+.2f}")
+            shaping_log.append(f"~ New key distance: {curr_dist:+.2f}")
+                
+        else:
+            prev_dist = manhattan_dist(prev_pos, key_pos)
+            curr_dist = manhattan_dist(agent_pos, key_pos)
+
         if curr_dist < prev_dist:
             shaped_reward += 0.03
         else:
             shaped_reward -= 0.03
+        
 
-    return shaped_reward
+    return shaped_reward, shaping_log
 
-def apply_goal_distance_shaping(env, shaped_reward, action):
+def apply_door_distance_shaping(env, shaped_reward, action, door_unlocked, shaping_log):
+    """
+    Reward for getting closer to the door (closed, matching key color),
+    based on the previous position.
+    """
+
+    if door_unlocked:
+        return shaped_reward, shaping_log
+
+    # Only shape if the agent is holding a key
+    if not (env.carrying and getattr(env.carrying, "type", None) == "key"):
+        return shaped_reward, shaping_log
+
+    agent_pos = tuple(env.agent_pos)
+    prev_pos = get_prev_pos(env, agent_pos, action)
+
+    # Locate goal
+    door_position = None
+    for i in range(env.width):
+        for j in range(env.height):
+            tile = env.grid.get(i, j)
+            if tile and tile.type == 'door':
+                door_position = (i, j)
+                break
+
+    # If we found no relevant doors, don't change the reward
+    if door_position:
+        if "DoorKey" in env.spec.id:
+            prev_dist = shortest_distance(env, prev_pos, door_position)
+            curr_dist = shortest_distance(env, agent_pos, door_position)
+            shaping_log.append(f"~ Old door distance: {prev_dist:+.2f}")
+            shaping_log.append(f"~ New door distance: {curr_dist:+.2f}")
+                
+        else:
+            prev_dist = manhattan_dist(prev_pos, door_position)
+            curr_dist = manhattan_dist(agent_pos, door_position)
+
+        if curr_dist < prev_dist:
+            shaped_reward += 0.05
+        elif curr_dist > prev_dist:
+            shaped_reward -= 0.05
+
+    return shaped_reward, shaping_log
+
+
+def apply_goal_distance_shaping(env, shaped_reward, action, door_unlocked, shaping_log):
     """
     Computes reward for getting closer to the goal *based on predicted previous position*.
     """
+
+    if not door_unlocked:
+        return shaped_reward, shaping_log
+    
     if not (env.carrying and env.carrying.type == 'key'):
-        return shaped_reward
+        return shaped_reward, shaping_log
         
     agent_pos = env.agent_pos
     prev_pos = get_prev_pos(env, agent_pos, action)
@@ -85,61 +185,36 @@ def apply_goal_distance_shaping(env, shaped_reward, action):
                 break
 
     if goal_pos:
-        prev_dist = manhattan_dist(prev_pos, goal_pos)
-        curr_dist = manhattan_dist(agent_pos, goal_pos)
-        if curr_dist < prev_dist:
-            shaped_reward += 0.05
+        if "DoorKey" in env.spec.id:
+            prev_dist = shortest_distance(env, prev_pos, goal_pos)
+            curr_dist = shortest_distance(env, agent_pos, goal_pos)
+            shaping_log.append(f"~ Old goal distance: {prev_dist:+.2f}")
+            shaping_log.append(f"~ New goal distance: {curr_dist:+.2f}")
+            if curr_dist < prev_dist:
+                shaped_reward += 0.05
+            else:
+                shaped_reward -= 0.05
+
         else:
-            shaped_reward -= 0.05
+            prev_dist = manhattan_dist(prev_pos, goal_pos)
+            curr_dist = manhattan_dist(agent_pos, goal_pos)
+            if curr_dist < prev_dist:
+                shaped_reward += 0.05
+            else:
+                shaped_reward -= 0.05
 
-    return shaped_reward
-
-def apply_goal_distance_shaping_toward_box(env, shaped_reward, action):
-    """
-    Computes reward for getting closer to the box (goal) only after the door is open.
-    Uses predicted previous position based on the action taken.
-    """
-    agent_pos = env.agent_pos
-    prev_pos = get_prev_pos(env, agent_pos, action)
-
-    # Check if the door is open
-    door_open = any(
-        tile and tile.type == 'door' and tile.is_open
-        for i in range(env.width)
-        for j in range(env.height)
-        if (tile := env.grid.get(i, j))
-    )
-
-    if not door_open:
-        return shaped_reward
-
-    # Locate the box
-    box_pos = None
-    for i in range(env.width):
-        for j in range(env.height):
-            tile = env.grid.get(i, j)
-            if tile and tile.type == 'box':
-                box_pos = (i, j)
-                break
-        if box_pos:
-            break
-
-    if box_pos:
-        prev_dist = manhattan_dist(prev_pos, box_pos)
-        curr_dist = manhattan_dist(agent_pos, box_pos)
-        if curr_dist < prev_dist:
-            shaped_reward += 0.05
-        else:
-            shaped_reward -= 0.05
-
-    return shaped_reward
-
+    return shaped_reward, shaping_log
 
 def manhattan_dist(pos1, pos2):
     return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
 
+import os
+
+LOG_FILE = "reward_log.txt"
+
 def shape_reward(
-    env, action, reward, strategy, state_visits, next_state, beta, has_received_key_reward, prev_agent_pos
+    env, action, reward, strategy, state_visits, next_state,
+    beta, has_received_key_reward, prev_agent_pos, has_unlocked_door_reward, step
 ):
     env = env.unwrapped
     shaping_log = []
@@ -148,60 +223,64 @@ def shape_reward(
     reward -= 0.01
     shaping_log.append("- Step penalty: -0.01")
 
+    shaping_log.append(f"- Old Pos: {prev_agent_pos}")
+    shaping_log.append(f"- New Pos: {env.agent_pos}")
+    # Penalty for not moving
     if env.agent_pos == prev_agent_pos:
+        shaping_log.append("- Stayed in place: -0.05")
         reward -= 0.05
-        shaping_log.append("- Idle penalty: -0.05")
+            
+        return reward , has_received_key_reward, has_unlocked_door_reward
 
-    has_key = env.carrying and env.carrying.type == 'key'
+    has_key = env.carrying and getattr(env.carrying, "type", None) == "key"
+
+    # Key pickup bonus
     if has_key and not has_received_key_reward:
         reward += 0.3
         has_received_key_reward = True
         shaping_log.append("+ Picked up key: +0.3")
 
+    # Door unlocked bonus
     door_unlocked = any(
         tile and tile.type == 'door' and tile.is_open
         for i in range(env.width)
         for j in range(env.height)
         if (tile := env.grid.get(i, j))
     )
-    if door_unlocked:
+    if door_unlocked and not has_unlocked_door_reward:
+        has_unlocked_door_reward = True
         reward += 0.4
         shaping_log.append("+ Door unlocked: +0.4")
 
+    # Goal reached bonus
     cell = env.grid.get(*env.agent_pos)
     if cell and cell.type == 'goal':
         reward += 1.0
         shaping_log.append("+ Reached goal: +1.0")
 
-    if env.carrying and env.carrying.type == 'box':
-        shaped = 1 - 0.9 * (env.step_count / env.max_steps)
-        reward += shaped
-        shaping_log.append(f"+ Reached box: +{shaped:.3f}")
+    # Intrinsic bonus
+    if strategy == "count":
+        before_intrinsic = reward
+        reward += intrinsic_count_bonus(next_state, state_visits, beta)
+        if reward != before_intrinsic:
+            shaping_log.append(f"~ Intrinsic bonus: {reward - before_intrinsic:+.2f}")
 
-    bonus = intrinsic_count_bonus(strategy, next_state, state_visits, beta)
-    if bonus > 0:
-        reward += bonus
-        shaping_log.append(f"+ Count-based bonus: +{bonus:.3f}")
+    # Key distance shaping
+    before_key = reward
+    reward, shaping_log = apply_key_distance_shaping(env, reward, action, door_unlocked, shaping_log)
+    if reward != before_key:
+        shaping_log.append(f"~ Key distance shaping: {reward - before_key:+.2f}")
 
-    prev = reward
-    reward = apply_key_distance_shaping(env, reward, action)
-    if reward > prev:
-        shaping_log.append(f"+ Closer to key: +{reward - prev:.3f}")
-    elif reward < prev:
-        shaping_log.append(f"- Farther from key: -{prev - reward:.3f}")
+    # Door distance shaping
+    before_door = reward
+    reward, shaping_log = apply_door_distance_shaping(env, reward, action, door_unlocked, shaping_log)
+    if reward != before_door:
+        shaping_log.append(f"~ Door distance shaping: {reward - before_door:+.2f}")
 
-    prev = reward
-    reward = apply_goal_distance_shaping(env, reward, action)
-    if reward > prev:
-        shaping_log.append(f"+ Closer to goal: +{reward - prev:.3f}")
-    elif reward < prev:
-        shaping_log.append(f"- Farther from goal: -{prev - reward:.3f}")
+    # Goal distance shaping
+    if "Unlock" in env.spec.id:
+        before_goal = reward
+        reward, shaping_log = apply_goal_distance_shaping(env, reward, action, door_unlocked, shaping_log)
+        shaping_log.append(f"~ Goal distance shaping: {reward - before_goal:+.2f}")
 
-    prev = reward
-    reward = apply_goal_distance_shaping_toward_box(env, reward, action)
-    if reward > prev:
-        shaping_log.append(f"+ Closer to box: +{reward - prev:.3f}")
-    elif reward < prev:
-        shaping_log.append(f"- Farther from box: -{prev - reward:.3f}")
-
-    return reward, has_received_key_reward
+    return reward, has_received_key_reward, has_unlocked_door_reward

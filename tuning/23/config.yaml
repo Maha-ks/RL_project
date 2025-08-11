@@ -1,0 +1,20 @@
+alpha: 0.1
+base_training:
+  alpha: 0.1
+  beta: 0.5
+  epsilon: 1.0
+  epsilon_decay: 0.9999
+  gamma: 0.99
+  max_steps: 200
+  min_epsilon: 0.01
+  num_episodes: 20000
+env_name: Unlock
+epsilon: 1.0
+epsilon_decay: 0.9999
+gamma: 0.99
+novelty_weights:
+  entropy: 0.3
+  progress: 0.55
+  variance: 0.15
+seed: 0
+strategy: novelty

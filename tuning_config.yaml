@@ -1,17 +1,38 @@
 strategy: novelty
 env_name: Unlock
-seeds: [0]
+seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 novelty_weight_sets:
-  - {entropy: 0.3, progress: 0.4, variance: 0.3}
-  - {entropy: 0.2, progress: 0.6, variance: 0.2}
-  - {entropy: 0.4, progress: 0.4, variance: 0.2}
-
-alpha_values: [0.07, 0.1, 0.2, 0.3]
-gamma_values: [0.90, 0.95, 0.99]
-epsilon_starts: [0.6, 0.8, 1.0]
-epsilon_decays: [0.999, 0.9995, 0.9999]
-#total 324 runs too much for using gridsearch so we use random search instead
+  - {entropy: 0.30, progress: 0.40, variance: 0.30}
+  - {entropy: 0.20, progress: 0.60, variance: 0.20}
+  - {entropy: 0.40, progress: 0.40, variance: 0.20}
+  - {entropy: 0.33, progress: 0.33, variance: 0.34}
+  - {entropy: 0.25, progress: 0.50, variance: 0.25}
+  - {entropy: 0.45, progress: 0.30, variance: 0.25}
+  - {entropy: 0.35, progress: 0.45, variance: 0.20}
+  - {entropy: 0.50, progress: 0.30, variance: 0.20}
+  - {entropy: 0.60, progress: 0.25, variance: 0.15}
+  - {entropy: 0.20, progress: 0.70, variance: 0.10}
+  - {entropy: 0.15, progress: 0.75, variance: 0.10}
+  - {entropy: 0.25, progress: 0.25, variance: 0.50}
+  - {entropy: 0.20, progress: 0.35, variance: 0.45}
+  - {entropy: 0.40, progress: 0.25, variance: 0.35}
+  - {entropy: 0.30, progress: 0.55, variance: 0.15}
+  - {entropy: 0.28, progress: 0.52, variance: 0.20}
+  - {entropy: 0.38, progress: 0.42, variance: 0.20}
+  - {entropy: 0.22, progress: 0.48, variance: 0.30}
+  - {entropy: 0.34, progress: 0.26, variance: 0.40}
+  - {entropy: 0.44, progress: 0.36, variance: 0.20}
+  - {entropy: 0.48, progress: 0.22, variance: 0.30}
+  - {entropy: 0.26, progress: 0.64, variance: 0.10}
+  - {entropy: 0.32, progress: 0.58, variance: 0.10}
+  - {entropy: 0.28, progress: 0.38, variance: 0.34}
+  - {entropy: 0.36, progress: 0.34, variance: 0.30}
+  - {entropy: 0.42, progress: 0.28, variance: 0.30}
+  - {entropy: 0.24, progress: 0.44, variance: 0.32}
+  - {entropy: 0.31, progress: 0.29, variance: 0.40}
+  - {entropy: 0.37, progress: 0.33, variance: 0.30}
+  - {entropy: 0.27, progress: 0.47, variance: 0.26}
 
 # how many random configs to sample from the full cartesian set
-num_random_configs: 20
+num_random_configs: 30

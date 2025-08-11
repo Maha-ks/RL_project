@@ -1,5 +1,5 @@
 env_name: DoorKey
-strategy: entropy
+strategy: count
 render: true
 
 training:

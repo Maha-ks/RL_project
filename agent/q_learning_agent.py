@@ -25,7 +25,6 @@ def train_q_learning(env, strategy, config, seed=None):
     render = config.get("render", False)
 
     # Create folder for saving plots
-    print(env.spec.id)
     if "DoorKey" in env.spec.id:
         env_type = "doorkey"
     elif "Unlock" in env.spec.id:
@@ -82,7 +81,8 @@ def train_q_learning(env, strategy, config, seed=None):
             action = choose_action(
                             state, q_table, prev_q_table, strategy, epsilon, n_actions,
                             sa_counts, 1.0, novelty_weights=config.get("novelty_weights")
-                        )            
+                        )    
+                    
             sa_counts[(state, action)] += 1
             next_obs, reward, done, truncated, _ = env.step(action)
             next_state = get_state(env, next_obs)
@@ -165,7 +165,7 @@ def train_q_learning(env, strategy, config, seed=None):
     # 3. Unique States Visited per Episode
     u_states = unique_states_per_episode
     u_window = 50 
-    u_final_avg = int(round(np.mean(u_states[-100:]))) if len(u_states) >= 1 else 0.0
+    u_overall_avg = np.mean(u_states)
 
     if len(u_states) >= u_window:
         u_roll = np.convolve(u_states, np.ones(u_window)/u_window, mode='valid')
@@ -179,7 +179,7 @@ def train_q_learning(env, strategy, config, seed=None):
     plt.plot(episodes, u_states, label="Raw Unique States", alpha=0.4)
     if u_roll is not None:
         plt.plot(u_roll_x, u_roll, label=f"Smoothed (window={u_window})", color='red')
-    plt.axhline(u_final_avg, color='green', linestyle='--', label=f"Final avg: {u_final_avg}")
+    plt.axhline(u_overall_avg, color='green', linestyle='--', label=f"Overall avg: {u_overall_avg}")
     plt.title(f"Unique States Visited per Episode ({strategy})")
     plt.xlabel("Episode")
     plt.ylabel("# Unique States")

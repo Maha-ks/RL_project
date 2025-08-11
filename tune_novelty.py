@@ -5,8 +5,6 @@ import matplotlib.pyplot as plt
 from agent.q_learning_agent import train_q_learning
 from environments import get_environment
 
-# -------------------- Utils --------------------
-
 def set_global_seed(seed):
     np.random.seed(seed); random.seed(seed)
 
@@ -67,7 +65,6 @@ def average_series(list_of_lists):
     arr = np.stack([np.asarray(x[:min_len], dtype=float) for x in list_of_lists])
     return arr.mean(axis=0).tolist()
 
-# -------------------- Main --------------------
 
 def main():
     # Load baseline (fixed training params) and tuning spec (only weight sets + general info)
@@ -79,7 +76,6 @@ def main():
     strategy  = tune["strategy"]
     env_name  = tune["env_name"]
 
-    # Seeds: list or fallback to single
     seeds = tune.get("seeds", [tune.get("seed", 0)])
 
     # Only tune novelty weights
@@ -115,7 +111,7 @@ def main():
             "final_reward","convergence_episode","avg_unique_states"
         ])
 
-    # ------------- Run configs one by one, and for each config run all seeds -------------
+    # Run configs one by one, and for each config run all seeds 
     for idx, w_set in enumerate(sampled, start=1):
         print(f"\n=== Running ALL seeds for cfg {idx} | w={w_set} ===")
 
@@ -160,7 +156,7 @@ def main():
             unique_states_list.append(list(unique_states))
             successes_list.append(list(successes))
 
-        # --- Averaged plots ---
+        # Averaged plots
         cfg_dir = os.path.join(tuning_root, str(idx)); os.makedirs(cfg_dir, exist_ok=True)
 
         avg_rewards = average_series(rewards_list)
@@ -175,7 +171,7 @@ def main():
             plot_series(avg_roll_succ, f"Rolling Success Rate (w=10) (cfg {idx})", "Success Rate",
                         os.path.join(cfg_dir, "rolling_success_rate.png"))
 
-        # --- Save config.yaml once per config ---
+        # Save config.yaml once per config
         with open(os.path.join(cfg_dir, "config.yaml"), "w") as yf:
             yaml.safe_dump({
                 "env_name": env_name,
@@ -189,7 +185,7 @@ def main():
                 "base_training": base_train
             }, yf)
 
-        # --- Append CSV row ---
+        # Append CSV row
         mean_final  = float(np.mean(final_rewards)) if final_rewards else float("nan")
         mean_unique = float(np.mean(avg_uniques)) if avg_uniques else float("nan")
         mean_conv   = (float(np.mean(conv_eps)) if conv_eps else None)

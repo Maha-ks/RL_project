@@ -184,6 +184,7 @@ def main():
         writer.writerow(overall)
 
     print(f"\nSaved summary to: {csv_path}")
+
 def plot_all_strategies(strategies=None, seeds=None):
     """
     Append-only: compares multiple strategies using the already-saved Q-tables.
@@ -213,7 +214,7 @@ def plot_all_strategies(strategies=None, seeds=None):
         rs, ss = [], []
         for seed in seeds:
             try:
-                qtab = load_q_table(env_name, strat, seed) #Load saved q tables
+                qtab = load_q_table(env_name, strat, seed)
             except Exception as e:
                 print(f"[WARN] Missing Q-table for {strat=} {seed=}: {e}")
                 continue

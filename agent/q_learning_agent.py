@@ -50,7 +50,6 @@ def train_q_learning(env, strategy, config, seed=None):
     visit_counts = defaultdict(int)   # (x, y) -> count
     state_to_pos = {}                 # state -> (x, y)
 
-
     prev_q_table = {}
 
     for episode in trange(num_episodes):

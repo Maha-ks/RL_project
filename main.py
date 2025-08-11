@@ -99,7 +99,7 @@ final_reward_std  = mean_rewards[-last_n:].std()
 
 # Success rate
 final_success_mean = mean_success_rate[-last_n:].mean()
-final_success_std  = std_success_rate[-last_n:].mean()  # avg per-episode std over last_n
+final_success_std  = std_success_rate[-last_n:].mean()
 
 # Unique states (int rounded)
 final_unique_mean = int(round(mean_unique[-last_n:].mean()))
@@ -166,6 +166,3 @@ print(f"[Summary over last {last_n} episodes]")
 print(f"Reward:  mean={final_reward_mean:.3f} ± {final_reward_std:.3f}")
 print(f"Success: mean={final_success_mean:.3f} ± {final_success_std:.3f}")
 print(f"Unique:  mean={final_unique_mean} ± {final_unique_std}")
-
-#from utils.save_utils import load_q_table
-# q_table = load_q_table("MiniGrid-DoorKey-5x5-v0", "novelty", seed=0)

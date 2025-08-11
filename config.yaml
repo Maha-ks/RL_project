@@ -1,5 +1,5 @@
-env_name: Unlock
-strategy: Novelty
+env_name: DoorKey
+strategy: entropy
 render: true
 
 training:
@@ -7,9 +7,9 @@ training:
   gamma: 0.99
   epsilon: 1.0
   min_epsilon: 0.01
-  epsilon_decay: 0.9999
+  epsilon_decay: 0.999
   beta: 0.5
-  num_episodes: 20000
+  num_episodes: 10000
   max_steps: 200
 
 save_path: qtables/qtable_door_key.npy

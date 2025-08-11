@@ -22,7 +22,6 @@ def shortest_distance(env, start, target):
         tile = env.grid.get(x, y)
         return not (tile and tile.type == "wall")
 
-
     if (sx, sy) == (tx, ty):
         return 0
 
@@ -208,9 +207,6 @@ def apply_goal_distance_shaping(env, shaped_reward, action, door_unlocked, shapi
 def manhattan_dist(pos1, pos2):
     return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
 
-import os
-
-LOG_FILE = "reward_log.txt"
 
 def shape_reward(
     env, action, reward, strategy, state_visits, next_state,
@@ -229,7 +225,6 @@ def shape_reward(
     if env.agent_pos == prev_agent_pos:
         shaping_log.append("- Stayed in place: -0.05")
         reward -= 0.05
-            
         return reward , has_received_key_reward, has_unlocked_door_reward
 
     has_key = env.carrying and getattr(env.carrying, "type", None) == "key"

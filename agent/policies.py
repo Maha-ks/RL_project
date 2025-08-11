@@ -2,10 +2,10 @@ import numpy as np
 import random
 from utils.state_utils import entropy
 
-def choose_action(state, q_table, prev_q_table, strategy, epsilon, n_actions, sa_counts=None, c=1.0, novelty_weights=None):
+def choose_action(state, q_table, prev_q_table, strategy, epsilon, n_actions, sa_counts, c=1.0, novelty_weights=None):
     q_values = q_table.get(state, np.zeros(n_actions))
     prev_q_values = prev_q_table.get(state, np.zeros(n_actions))
-    SWITCH_EPS = 0.1  # when your decayed epsilon goes below this, we allow entropy to boost it
+    SWITCH_EPS = 0.4  # when your decayed epsilon goes below this, we allow entropy to boost it
 
     if strategy == "decay":
         adaptive_epsilon = epsilon
@@ -24,18 +24,12 @@ def choose_action(state, q_table, prev_q_table, strategy, epsilon, n_actions, sa
         normalized_variance = q_var / q_range
 
         # Combine all into a normalized novelty score in [0, 1]
-        '''novelty_score = (
-            0.3 * normalized_entropy +
-            0.4 * learning_progress +
-            0.3 * normalized_variance
-        )'''
-        weights = locals().get("novelty_weights", {"entropy": 0.33, "progress": 0.34, "variance": 0.33})
         novelty_score = (
-            weights["entropy"]  * normalized_entropy +
-            weights["progress"] * learning_progress +
-            weights["variance"] * normalized_variance
+            0.33 * normalized_entropy +
+            0.34 * learning_progress +
+            0.33 * normalized_variance
         )
-
+        
         adaptive_epsilon = max(epsilon, novelty_score)
     elif strategy == "entropy":
         q_probs = softmax(q_values) if np.any(q_values) else np.ones(n_actions) / n_actions
@@ -62,7 +56,8 @@ def choose_action(state, q_table, prev_q_table, strategy, epsilon, n_actions, sa
         return random.randint(0, n_actions - 1)
     return np.argmax(q_values)
 
-def softmax(x):
-    z = x - np.max(x)
+def softmax(x, tau=0.02):
+    # tau is temperature
+    z = (x - np.max(x)) / tau
     e = np.exp(z)
     return e / (e.sum() + 1e-8)

@@ -22,7 +22,7 @@ Four exploration strategies:
 - Heatmaps of Q-values and state visits
 
 ## Project Structure
-
+```
 RL_project/
 │── agent/                     # Q-learning agent and exploration policies
 │   ├── q_learning_agent.py
@@ -48,5 +48,5 @@ RL_project/
 │── baseline_config.yaml         # Default Configuration used later when Tuning
 │── tuning_config.yaml           # Tuning configuration
 │── requirements.txt             # Python dependencies
-
+```
 

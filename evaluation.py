@@ -1,9 +1,8 @@
-# eval_qtables.py
 import os
 import yaml
 import numpy as np
-from typing import Dict, List, Tuple
-
+from typing import Dict, List
+import matplotlib.pyplot as plt
 from environments import get_environment
 from utils.state_utils import get_state
 from utils.save_utils import load_q_table
@@ -12,8 +11,8 @@ from utils.save_utils import load_q_table
 def evaluate_policy(
     env, 
     q_table: Dict, 
-    n_episodes: int = 50, 
-    max_steps: int = 100
+    n_episodes: int = 30, 
+    max_steps: int = 20
 ) -> Dict[str, np.ndarray]:
     """
     Evaluate a loaded Q-table greedily (argmax) for n_episodes.
@@ -77,8 +76,6 @@ def summarize_metrics(metrics: Dict[str, np.ndarray]) -> Dict[str, float]:
         "avg_steps_success": avg_steps_success,
     }
 
-
-
 def main():
     # Load experiment config
     with open("config.yaml", "r") as f:
@@ -86,10 +83,10 @@ def main():
 
     env_name = config["env_name"]
     strategy = config["strategy"]
-    eval_episodes = 100
+    eval_episodes = 30
     max_steps = config.get("training", {}).get("max_steps", 20)
 
-    seeds = [0, 1, 2, 3, 4, 5, 6, 7, 9] 
+    seeds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] 
 
     # Where to save evaluation outputs
     outdir = os.path.join("results", "eval", env_name, strategy.replace(" ", "_"))
@@ -187,7 +184,80 @@ def main():
         writer.writerow(overall)
 
     print(f"\nSaved summary to: {csv_path}")
+def plot_all_strategies(strategies=None, seeds=None):
+    """
+    Append-only: compares multiple strategies using the already-saved Q-tables.
+    Saves two plots under results/plots/<env_name>/.
+    """
+    with open("config.yaml", "r") as f:
+        cfg = yaml.safe_load(f)
 
+    env_name = cfg["env_name"]
+    eval_episodes = 30                      
+    max_steps = cfg.get("training", {}).get("max_steps", 20)
+
+    if strategies is None:
+        strategies = ["decay", "entropy", "count", "novelty"]
+    if seeds is None:
+        seeds = list(range(10))               
+
+    outdir = os.path.join("results", "plots", env_name)
+    os.makedirs(outdir, exist_ok=True)
+
+    env = get_environment(env_name, render_mode=None)
+
+    r_means, r_stds = [], []
+    s_means, s_stds = [], []
+
+    for strat in strategies:
+        rs, ss = [], []
+        for seed in seeds:
+            try:
+                qtab = load_q_table(env_name, strat, seed) #Load saved q tables
+            except Exception as e:
+                print(f"[WARN] Missing Q-table for {strat=} {seed=}: {e}")
+                continue
+            env.reset(seed=seed)
+            metrics = evaluate_policy(env, qtab, n_episodes=eval_episodes, max_steps=max_steps)
+            summ = summarize_metrics(metrics)
+            rs.append(summ["avg_reward"])
+            ss.append(summ["success_rate"])
+
+        if rs:
+            r_means.append(float(np.mean(rs))); r_stds.append(float(np.std(rs)))
+            s_means.append(float(np.mean(ss))); s_stds.append(float(np.std(ss)))
+        else:
+            r_means.append(np.nan); r_stds.append(np.nan)
+            s_means.append(np.nan); s_stds.append(np.nan)
+
+    env.close()
+
+    # Plot 1: Average Reward 
+    x = np.arange(len(strategies))
+    plt.figure(figsize=(9,5))
+    plt.errorbar(x, r_means, yerr=r_stds, fmt='o-', capsize=4)
+    plt.xticks(x, strategies)
+    plt.ylabel("Average Reward (eval)")
+    plt.title(f"{env_name} — Average Reward across strategies (mean ± std)")
+    plt.grid(True, axis='y', linestyle='--', alpha=0.5)
+    p1 = os.path.join(outdir, "avg_reward_by_strategy.png")
+    plt.savefig(p1, dpi=300, bbox_inches="tight"); plt.close()
+
+    # Plot 2: Success Rate 
+    plt.figure(figsize=(9,5))
+    plt.errorbar(x, s_means, yerr=s_stds, fmt='o-', capsize=4)
+    plt.xticks(x, strategies)
+    plt.ylabel("Success Rate (0–1)")
+    plt.title(f"{env_name} — Success Rate across strategies (mean ± std)")
+    plt.grid(True, axis='y', linestyle='--', alpha=0.5)
+    p2 = os.path.join(outdir, "success_rate_by_strategy.png")
+    plt.savefig(p2, dpi=300, bbox_inches="tight"); plt.close()
+
+    print(f"\nSaved comparison plots:\n- {p1}\n- {p2}")
 
 if __name__ == "__main__":
     main()
+    plot_all_strategies(
+        strategies=["decay", "entropy", "count", "novelty"],
+        seeds=list(range(10))
+    )

@@ -89,7 +89,7 @@ def main():
     eval_episodes = 100
     max_steps = config.get("training", {}).get("max_steps", 20)
 
-    seeds = [0, 1, 2, 3, 4] 
+    seeds = [0, 1, 2, 3, 4, 5, 6, 7, 9] 
 
     # Where to save evaluation outputs
     outdir = os.path.join("results", "eval", env_name, strategy.replace(" ", "_"))

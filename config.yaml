@@ -9,7 +9,7 @@ training:
   min_epsilon: 0.01
   epsilon_decay: 0.999
   beta: 0.5
-  num_episodes: 10000
+  num_episodes: 10000 #change 20000 for Unlock
   max_steps: 200
 
 save_path: qtables/qtable_door_key.npy

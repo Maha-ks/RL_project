@@ -14,6 +14,7 @@ def set_global_seed(seed):
     np.random.seed(seed)
     random.seed(seed)
 
+# Evaluate agent for testing 
 def evaluate_agent(env, q_table, get_state, n_episodes=10):
     for ep in range(n_episodes):
         obs, _ = env.reset()
@@ -47,18 +48,19 @@ for seed in seeds:
 
     env = get_environment(config["env_name"], None)
     env.reset(seed=seed)
-
+    # Train the agent
     q_table, metrics = train_q_learning(
         env, config["strategy"], config["training"], seed=seed
     )
     all_rewards.append(metrics["rewards"])
     all_successes.append(metrics["successes"])
     all_unique_states.append(metrics["unique_states"])
-
+    # Save the agent
     save_q_table(q_table, config["env_name"], config["strategy"], seed)
 
     eval_env = get_environment(config["env_name"], None)
     eval_env.reset(seed=seed)
+    # Evaluate the agent
     evaluate_agent(eval_env, q_table, get_state)
 
 all_rewards = np.array(all_rewards)          
@@ -76,7 +78,7 @@ std_unique = all_unique_states.std(axis=0)
 
 episodes = np.arange(mean_rewards.shape[0])
 
-# Optional smoothing for readability
+# smoothing for readability
 def smooth(x, w=50):
     if len(x) < w:
         return x

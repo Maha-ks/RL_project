@@ -3,6 +3,15 @@ import random
 from utils.state_utils import entropy
 
 def choose_action(state, q_table, prev_q_table, strategy, epsilon, n_actions, sa_counts, c=1.0, novelty_weights=None):
+    """
+    Select an action based on the chosen exploration strategy.
+
+    This function implements multiple ε-greedy exploration variants for a tabular Q-learning agent:
+    - Fixed decay (standard ε-greedy)
+    - Novelty-driven exploration
+    - Entropy-driven exploration
+    - Count-based exploration with intrinsic bonus
+    """
     q_values = q_table.get(state, np.zeros(n_actions))
     prev_q_values = prev_q_table.get(state, np.zeros(n_actions))
     SWITCH_EPS = 0.4 
@@ -15,7 +24,7 @@ def choose_action(state, q_table, prev_q_table, strategy, epsilon, n_actions, sa
         learning_progress = np.max(np.abs(q_values - prev_q_values))
 
         # Entropy
-        q_probs = softmax(q_values) if np.any(q_values) else np.ones(n_actions)/n_actions
+        q_probs = softmax(q_values, 0.3) if np.any(q_values) else np.ones(n_actions)/n_actions
         normalized_entropy = entropy(q_probs) / np.log(n_actions)
 
         # Q-value variance
@@ -29,10 +38,17 @@ def choose_action(state, q_table, prev_q_table, strategy, epsilon, n_actions, sa
             0.34 * learning_progress +
             0.33 * normalized_variance
         )
+        # remove this for tuning
+        '''weights = locals().get("novelty_weights", {"entropy": 0.33, "progress": 0.34, "variance": 0.33})
+        novelty_score = (
+            weights["entropy"]  * normalized_entropy +
+            weights["progress"] * learning_progress +
+            weights["variance"] * normalized_variance
+        )'''
         
         adaptive_epsilon = max(epsilon, novelty_score)
     elif strategy == "entropy":
-        q_probs = softmax(q_values) if np.any(q_values) else np.ones(n_actions) / n_actions
+        q_probs = softmax(q_values, 0.02) if np.any(q_values) else np.ones(n_actions) / n_actions
         H = entropy(q_probs)
         H_norm = H / (np.log(n_actions))
 
@@ -56,7 +72,7 @@ def choose_action(state, q_table, prev_q_table, strategy, epsilon, n_actions, sa
         return random.randint(0, n_actions - 1)
     return np.argmax(q_values)
 
-def softmax(x, tau=0.02):
+def softmax(x, tau=0.1): 
     # tau is temperature
     z = (x - np.max(x)) / tau
     e = np.exp(z)

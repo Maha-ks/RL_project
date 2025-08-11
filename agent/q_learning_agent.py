@@ -11,6 +11,13 @@ import matplotlib.pyplot as plt
 
 
 def train_q_learning(env, strategy, config, seed=None):
+    """
+    Train a tabular Q-learning agent with a specified exploration strategy in a MiniGrid environment.
+
+    This function runs Q-learning for a given number of episodes, applying one of several
+    exploration strategies (decay, novelty, entropy, count-based). It tracks rewards, 
+    success rates, unique states visited, and generates visualizations of the learning process.
+    """
     if seed is not None:
         np.random.seed(seed)
         random.seed(seed)
@@ -76,13 +83,14 @@ def train_q_learning(env, strategy, config, seed=None):
             state_visits[state] += 1
             visited_states.add(state)
             prev_agent_pos = env.unwrapped.agent_pos
-
+            # choose action
             action = choose_action(
                             state, q_table, prev_q_table, strategy, epsilon, n_actions,
                             sa_counts, 1.0, novelty_weights=config.get("novelty_weights")
                         )    
                     
             sa_counts[(state, action)] += 1
+            # perform the action 
             next_obs, reward, done, truncated, _ = env.step(action)
             next_state = get_state(env, next_obs)
 
@@ -97,6 +105,7 @@ def train_q_learning(env, strategy, config, seed=None):
             )
 
             prev_q_table = q_table.copy()
+            # update q table
             q_table[state][action] = (1 - alpha) * q_table[state][action] + \
                 alpha * (reward + gamma * np.max(q_table[next_state]))
 

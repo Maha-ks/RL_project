@@ -1,0 +1,13 @@
+training:
+  alpha: 0.1
+  gamma: 0.99
+  epsilon: 1.0
+  min_epsilon: 0.01
+  epsilon_decay: 0.9999
+  beta: 0.5
+  num_episodes: 20000
+  max_steps: 200
+  novelty_weights:
+    entropy: 0.33
+    progress: 0.34
+    variance: 0.33

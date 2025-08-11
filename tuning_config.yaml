@@ -14,4 +14,4 @@ epsilon_decays: [0.999, 0.9995, 0.9999]
 #total 324 runs too much for using gridsearch so we use random search instead
 
 # how many random configs to sample from the full cartesian set
-num_random_configs: 30
+num_random_configs: 20
